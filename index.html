@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>AERH Quizzizze</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--t950:#060F0F;--t900:#0D1F1F;--t800:#1D3D3D;--t700:#2D5A5A;--t600:#3D7878;--t500:#4A8A8A;--t400:#6AABAB;--t300:#8FC5C5;--t200:#B4D9D9;--t100:#D4EDED;--t50:#EEF8F8;--ac0:#E21B3C;--ac1:#1368CE;--ac2:#D89E00;--ac3:#26890C;}
+body.theme-ocean{--t900:#0A1628;--t800:#112244;--t700:#1A3A6B;--t600:#2255A0;--t500:#3A6EC0;--t400:#6090D8;--t300:#90B4E8;--t200:#C0D8F8;--t100:#E0EEFF;--t50:#F0F6FF;}
+body.theme-sunset{--t900:#1A0A00;--t800:#2D1500;--t700:#5A2E00;--t600:#8B4A00;--t500:#B56200;--t400:#D4820A;--t300:#E8A84A;--t200:#F0C88A;--t100:#F8E8C8;--t50:#FFF5E8;}
+body.theme-forest{--t900:#061206;--t800:#0D200D;--t700:#1A3D1A;--t600:#2A5E2A;--t500:#3A7A3A;--t400:#5A9E5A;--t300:#85BE85;--t200:#B0D8B0;--t100:#D5EDD5;--t50:#EDFAED;}
+body.theme-violet{--t900:#0F0620;--t800:#1A0A38;--t700:#2D1460;--t600:#451E90;--t500:#5A2AB0;--t400:#7A4ED0;--t300:#A080E0;--t200:#C8B0F0;--t100:#E5D8F8;--t50:#F5F0FF;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--t900);overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+.syne{font-family:'Syne',sans-serif;}
+.screen{min-height:100vh;display:flex;flex-direction:column;}
+.center{align-items:center;justify-content:center;text-align:center;padding:2rem;}
+.btn{border:none;border-radius:14px;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;transition:all 0.2s;padding:0.95rem 1.5rem;font-size:1rem;display:inline-block;}
+.btn-primary{background:linear-gradient(135deg,var(--t600),var(--t400));color:white;box-shadow:0 0 24px rgba(74,138,138,0.35);}
+.btn-outline{background:transparent;color:var(--t300);border:2px solid var(--t600);}
+.btn-secondary{background:var(--t700);color:var(--t200);}
+.btn-full{width:100%;}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.inp{padding:0.9rem 1rem;border:2px solid var(--t100);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:1rem;color:var(--t800);outline:none;width:100%;transition:border-color 0.2s;}
+.inp:focus{border-color:var(--t500);}
+.card{background:white;border-radius:20px;padding:1.5rem;box-shadow:0 2px 16px rgba(29,61,61,0.08);}
+.lbl{font-size:0.72rem;font-weight:700;letter-spacing:0.14em;color:var(--t500);text-transform:uppercase;margin-bottom:0.6rem;display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{from{opacity:0;transform:scale(0.6)}to{opacity:1;transform:scale(1)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.anim{animation:fadeIn 0.4s ease;}
+.pop{animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1);}
+#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--t700);color:white;padding:0.75rem 1.5rem;border-radius:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;font-size:0.9rem;}
+#toast.show{opacity:1;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--t600);border-radius:3px;}
+textarea{font-family:'DM Sans',sans-serif;}
+@media print{body>*:not(#printArea){display:none!important;}#printArea{display:block!important;}body{background:white!important;}@page{margin:1.5cm;size:A4;}}
+#printArea{display:none;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+<div id="printArea"></div>
+<script>
+/* AERH QUIZZIZZE v2.0 — Production complète */
+const AC=['#E21B3C','#1368CE','#D89E00','#26890C'];
+const AS=['▲','◆','●','■'];
+const AL=['A','B','C','D'];
+const FB={apiKey:"AIzaSyBx9R_eXi554fChm_HPZF8rZvk6M8f4kQM",authDomain:"aerh-quizzizze.firebaseapp.com",projectId:"aerh-quizzizze",storageBucket:"aerh-quizzizze.firebasestorage.app",messagingSenderId:"574285937814",appId:"1:574285937814:web:41e0615ced42af8d44d6b7",databaseURL:"https://aerh-quizzizze-default-rtdb.firebaseio.com"};
+
+let S={screen:'home',role:null,theme:'',questions:[],roomCode:'',sessionData:null,loading:false,loadingStep:'',playerId:sessionStorage.getItem('aerh_pid')||uid(),playerName:'',currentQ:0,timer:30,db:null,timerInt:null,fbListeners:[],colorTheme:'teal',anthropicKey:null};
+sessionStorage.setItem('aerh_pid',S.playerId);
+
+function uid(){return Math.random().toString(36).substr(2,9);}
+function room(){return Math.random().toString(36).substr(2,6).toUpperCase();}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+
+/* ── Persistance ── */
+function savePref(k,v){try{localStorage.setItem(k,v);}catch(e){}try{const d=new Date();d.setTime(d.getTime()+365*86400000);document.cookie=k+'='+encodeURIComponent(v)+';expires='+d.toUTCString()+';path=/;SameSite=Strict';}catch(e){}}
+function loadPref(k){try{const v=localStorage.getItem(k);if(v)return v;}catch(e){}try{const m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)');if(m)return decodeURIComponent(m[2]);}catch(e){}return null;}
+function getPin(){return loadPref('aerh_pin');}
+function savePin(p){savePref('aerh_pin',p);}
+function getKey(){return loadPref('aerh_key');}
+function saveKey(k){savePref('aerh_key',k);S.anthropicKey=k;}
+
+/* ── Init ── */
+S.anthropicKey=getKey();
+const savedTheme=loadPref('aerh_theme');
+if(savedTheme&&savedTheme!=='teal'){document.body.classList.add('theme-'+savedTheme);S.colorTheme=savedTheme;}
+
+function applyTheme(t){document.body.className='';if(t&&t!=='teal')document.body.classList.add('theme-'+t);S.colorTheme=t||'teal';savePref('aerh_theme',t);}
+
+/* ── Firebase ── */
+function initFB(){try{if(firebase.apps.length)firebase.apps.forEach(a=>a.delete());firebase.initializeApp(FB);S.db=firebase.database();return true;}catch(e){console.error(e);return false;}}
+function ref(p){return S.db.ref(p);}
+function listenDB(path,cb){const r=ref(path);const h=r.on('value',s=>cb(s.val()));S.fbListeners.push({r,h});return h;}
+function clearListeners(){S.fbListeners.forEach(({r,h})=>r.off('value',h));S.fbListeners=[];}
+initFB();
+
+/* ── URL params ── */
+const uP=new URLSearchParams(location.search);
+if(uP.get('room')){S.screen='player-join';S.roomCode=uP.get('room');}
+
+/* ── Render ── */
+function render(){document.getElementById('app').innerHTML='';document.getElementById('app').appendChild(SCREENS[S.screen]());}
+function go(scr,extra={}){clearListeners();if(S.timerInt){clearInterval(S.timerInt);S.timerInt=null;}Object.assign(S,extra);S.screen=scr;render();}
+function toast(msg,d=2800){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),d);}
+
+/* ── Bibliothèque ── */
+async function saveToLib(title,questions){if(!S.db)return;const id='quiz_'+Date.now();await ref('library/'+id).set({id,title,questions,date:new Date().toLocaleDateString('fr-FR'),count:questions.length});toast('📚 Quiz sauvegardé !');}
+async function loadLib(){if(!S.db)return[];const snap=await ref('library').get();return Object.values(snap.val()||{}).sort((a,b)=>b.id.localeCompare(a.id));}
+async function deleteFromLib(id){await ref('library/'+id).remove();}
+
+/* ── Export PDF ── */
+function exportPDF(){
+  const sess=S.sessionData||{};
+  const sorted=Object.values(sess.participants||{}).sort((a,b)=>(b.score||0)-(a.score||0));
+  const date=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+  const rows=sorted.map((p,i)=>`<tr style="background:${i%2?'#f8f8f8':'white'}"><td style="padding:8px 12px;font-weight:700;color:#2D5A5A;">${i+1}</td><td style="padding:8px 12px;">${esc(p.name||'')}</td><td style="padding:8px 12px;font-weight:700;text-align:right;color:#2D5A5A;">${(p.score||0).toLocaleString()} pts</td></tr>`).join('');
+  const qRows=S.questions.map((q,i)=>`<tr style="background:${i%2?'#f8f8f8':'white'}"><td style="padding:6px 10px;color:#888;font-size:12px;">${i+1}</td><td style="padding:6px 10px;font-size:13px;">${esc(q.question||'')}</td><td style="padding:6px 10px;font-size:12px;color:#3D7878;">${esc(q.answers?.[q.correct]||'')}</td><td style="padding:6px 10px;font-size:11px;color:#aaa;">${esc(q.source||'')}</td></tr>`).join('');
+  const pa=document.getElementById('printArea');
+  pa.innerHTML=`<div style="font-family:Arial,sans-serif;color:#222;max-width:720px;margin:0 auto;"><div style="text-align:center;border-bottom:3px solid #3D7878;padding-bottom:16px;margin-bottom:24px;"><div style="font-size:11px;color:#888;letter-spacing:3px;margin-bottom:4px;">AERH FORMATIONS TAHITI · N° SEFI 000769</div><div style="font-size:28px;font-weight:900;color:#1D3D3D;">RÉSULTATS DU QUIZ</div><div style="font-size:16px;color:#3D7878;margin-top:4px;">${esc(S.theme)}</div><div style="font-size:12px;color:#888;margin-top:4px;">${date} · ${sorted.length} participants · ${S.questions.length} questions</div></div><div style="font-size:14px;font-weight:700;color:#1D3D3D;margin-bottom:8px;">🏆 CLASSEMENT FINAL</div><table style="width:100%;border-collapse:collapse;margin-bottom:28px;border:1px solid #eee;"><thead><tr style="background:#1D3D3D;color:white;"><th style="padding:10px 12px;text-align:left;">Rang</th><th style="padding:10px 12px;text-align:left;">Participant</th><th style="padding:10px 12px;text-align:right;">Score</th></tr></thead><tbody>${rows}</tbody></table><div style="font-size:14px;font-weight:700;color:#1D3D3D;margin-bottom:8px;">📋 QUESTIONS & RÉPONSES</div><table style="width:100%;border-collapse:collapse;border:1px solid #eee;"><thead><tr style="background:#1D3D3D;color:white;"><th style="padding:8px 10px;text-align:left;">#</th><th style="padding:8px 10px;text-align:left;">Question</th><th style="padding:8px 10px;text-align:left;">Bonne réponse</th><th style="padding:8px 10px;text-align:left;">Source</th></tr></thead><tbody>${qRows}</tbody></table><div style="margin-top:24px;text-align:center;font-size:10px;color:#ccc;">Généré par AERH Quizzizze</div></div>`;
+  pa.style.display='block';
+  setTimeout(()=>{window.print();setTimeout(()=>{pa.style.display='none';},500);},100);
+}
+
+/* ═══════════ SCREENS ═══════════ */
+const SCREENS={};
+
+/* HOME */
+SCREENS.home=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);position:relative;overflow:hidden;';
+  d.innerHTML=`
+  <div style="position:absolute;top:-30%;left:-20%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(45,90,90,0.35),transparent 65%);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-20%;right:-15%;width:450px;height:450px;border-radius:50%;background:radial-gradient(circle,rgba(61,120,120,0.2),transparent 65%);pointer-events:none;"></div>
+  <div style="position:relative;z-index:1;" class="anim">
+    <div style="font-size:0.72rem;color:var(--t400);letter-spacing:0.4em;margin-bottom:1.25rem;font-weight:600;">AERH FORMATIONS TAHITI</div>
+    <div class="syne" style="font-size:clamp(3.5rem,12vw,6rem);font-weight:900;color:white;line-height:0.85;margin-bottom:0.3rem;">QUIZ<span style="color:var(--t400);">IZZE</span></div>
+    <div class="syne" style="font-size:clamp(0.8rem,2.5vw,1rem);font-weight:700;color:var(--t500);letter-spacing:0.3em;margin-bottom:3.5rem;">FORMATION INTERACTIVE</div>
+    <div style="display:flex;flex-direction:column;gap:0.9rem;max-width:300px;margin:0 auto;">
+      <button class="btn btn-primary syne" style="font-size:1.05rem;font-weight:900;letter-spacing:0.03em;" onclick="goHost()">🎓  Je suis Animateur</button>
+      <button class="btn btn-outline" style="font-size:1.05rem;" onclick="go('player-join',{role:'player'})">📱  Je suis Participant</button>
+    </div>
+    <div style="margin-top:2.5rem;display:flex;gap:1.5rem;justify-content:center;">
+      <button onclick="go('config-key')" style="background:none;border:none;color:var(--t700);font-size:0.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;">⚙️ Clé API</button>
+      <button onclick="changePinFlow()" style="background:none;border:none;color:var(--t700);font-size:0.72rem;cursor:pointer;font-family:'DM Sans',sans-serif;">🔐 Changer PIN</button>
+    </div>
+  </div>`;
+  return d;
+};
+window.goHost=function(){go('host-pin');};
+window.changePinFlow=function(){localStorage.removeItem('aerh_pin');go('host-pin');toast('🔐 Créez un nouveau PIN');};
+
+/* CONFIG CLÉ API */
+SCREENS['config-key']=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);';
+  d.innerHTML=`
+  <div style="max-width:400px;width:100%;" class="anim">
+    <div style="text-align:center;margin-bottom:2rem;">
+      <div style="font-size:0.72rem;color:var(--t400);letter-spacing:0.35em;margin-bottom:0.5rem;">AERH FORMATIONS TAHITI</div>
+      <div class="syne" style="font-size:2.5rem;font-weight:900;color:white;">QUIZ<span style="color:var(--t400);">IZZE</span></div>
+      <div style="color:var(--t500);font-size:0.85rem;margin-top:0.5rem;">Clé API Anthropic (génération IA)</div>
+    </div>
+    <div class="card" style="background:var(--t800);border:1px solid var(--t700);margin-bottom:1.5rem;">
+      <span class="lbl" style="color:var(--t400);">CLÉ API ANTHROPIC</span>
+      <input id="akIn" type="password" placeholder="sk-ant-api03-..." class="inp" style="background:var(--t900);border-color:var(--t700);color:var(--t200);" value="${S.anthropicKey?'••••••••••••••••••••':''}">
+      <div style="color:var(--t500);font-size:0.7rem;margin-top:0.4rem;">💡 console.anthropic.com → API Keys</div>
+    </div>
+    <button class="btn btn-primary btn-full syne" style="font-size:1.1rem;font-weight:900;" onclick="saveCfgKey()">Enregistrer →</button>
+    <button onclick="go('home')" style="background:none;border:none;color:var(--t600);cursor:pointer;font-size:0.88rem;font-family:'DM Sans',sans-serif;display:block;width:100%;text-align:center;margin-top:1rem;">← Retour</button>
+  </div>`;
+  return d;
+};
+window.saveCfgKey=function(){
+  const ak=document.getElementById('akIn').value.trim();
+  if(!ak||ak.startsWith('•')){toast('⚠️ Entrez votre clé API');return;}
+  saveKey(ak);go('home');toast('✅ Clé API enregistrée !');
+};
+
+/* HOST PIN */
+SCREENS['host-pin']=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);';
+  const hasPin=!!getPin();
+  d.innerHTML=`
+  <div style="max-width:320px;width:100%;" class="anim">
+    <div style="font-size:3rem;margin-bottom:1rem;">🔐</div>
+    <div class="syne" style="color:white;font-size:1.8rem;font-weight:900;margin-bottom:0.5rem;">Espace Animateur</div>
+    <div style="color:var(--t400);margin-bottom:2rem;font-size:0.9rem;">${hasPin?'Entrez votre code PIN':'Créez votre code PIN (4 chiffres)'}</div>
+    <input id="pinIn" type="password" inputmode="numeric" maxlength="4" placeholder="• • • •" style="width:100%;padding:1.1rem;text-align:center;font-size:2rem;letter-spacing:0.5em;border:2px solid var(--t600);border-radius:14px;background:var(--t800);color:white;outline:none;font-family:'Syne',sans-serif;margin-bottom:1rem;">
+    ${!hasPin?`<input id="pinIn2" type="password" inputmode="numeric" maxlength="4" placeholder="Confirmer" style="width:100%;padding:1.1rem;text-align:center;font-size:2rem;letter-spacing:0.5em;border:2px solid var(--t600);border-radius:14px;background:var(--t800);color:white;outline:none;font-family:'Syne',sans-serif;margin-bottom:1rem;">`:''}
+    <button class="btn btn-primary btn-full syne" style="font-size:1.1rem;font-weight:900;" onclick="checkPin(${hasPin})">${hasPin?'Entrer →':'Créer le PIN →'}</button>
+    <button onclick="go('home')" style="background:none;border:none;color:var(--t600);cursor:pointer;font-size:0.9rem;font-family:'DM Sans',sans-serif;display:block;width:100%;text-align:center;margin-top:1.5rem;">← Retour</button>
+  </div>`;
+  setTimeout(()=>{const p=document.getElementById('pinIn');if(p)p.focus();},100);
+  return d;
+};
+window.checkPin=function(exists){
+  const pin=document.getElementById('pinIn').value;
+  if(!pin||pin.length<4){toast('⚠️ PIN de 4 chiffres requis');return;}
+  if(exists){if(pin!==getPin()){toast('❌ PIN incorrect');return;}go('host-setup',{role:'host',roomCode:room(),questions:[],theme:''});}
+  else{const pin2=document.getElementById('pinIn2')?.value;if(pin!==pin2){toast('❌ PINs différents');return;}savePin(pin);toast('✅ PIN créé !');go('host-setup',{role:'host',roomCode:room(),questions:[],theme:''});}
+};
+
+/* HOST SETUP */
+SCREENS['host-setup']=()=>{
+  const d=document.createElement('div');
+  d.className='screen';
+  d.style.cssText='background:var(--t50);';
+  const themes=[['teal','#3D7878','🌿 Teal'],['ocean','#2255A0','🌊 Océan'],['sunset','#8B4A00','🌅 Sunset'],['forest','#2A5E2A','🌲 Forêt'],['violet','#451E90','💜 Violet']];
+  const qHtml=S.questions.map((q,i)=>`
+    <div style="background:white;border-radius:16px;padding:1.25rem;margin-bottom:0.75rem;box-shadow:0 2px 10px rgba(29,61,61,0.07);border-left:4px solid var(--t300);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+        <div style="flex:1;">
+          <div style="font-weight:600;color:var(--t800);font-size:0.95rem;margin-bottom:0.5rem;line-height:1.4;">${i+1}. ${esc(q.question)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem;">
+            ${q.answers.map((a,ai)=>`<div style="font-size:0.77rem;padding:0.22rem 0.55rem;border-radius:5px;background:${ai===q.correct?AC[ai]:'var(--t50)'};color:${ai===q.correct?'white':'var(--t600)'};font-weight:${ai===q.correct?700:400};">${AS[ai]} ${esc(a)}</div>`).join('')}
+          </div>
+          ${q.source?`<div style="font-size:0.7rem;color:var(--t400);">📎 ${esc(q.source)}</div>`:''}
+        </div>
+        <button onclick="openEdit(${i})" style="background:var(--t100);border:none;border-radius:8px;padding:0.4rem 0.7rem;color:var(--t600);cursor:pointer;font-size:0.8rem;flex-shrink:0;">✏️</button>
+      </div>
+    </div>`).join('');
+  d.innerHTML=`
+  <div style="background:var(--t800);padding:0.9rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(0,0,0,0.3);">
+    <button onclick="go('home')" style="background:none;border:none;color:var(--t300);cursor:pointer;font-size:1.5rem;line-height:1;padding:0;">←</button>
+    <div class="syne" style="color:white;font-weight:800;font-size:1.1rem;">Créer un Quiz</div>
+    ${S.questions.length?`<div style="margin-left:auto;background:var(--t600);color:white;border-radius:8px;padding:0.25rem 0.7rem;font-size:0.8rem;font-weight:700;">${S.questions.length} questions</div>`:''}
+  </div>
+  <div style="padding:1.5rem;max-width:680px;margin:0 auto;" class="anim">
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+        <span class="lbl" style="margin-bottom:0;">THÈME DE LA FORMATION</span>
+        <button onclick="openLib()" style="background:var(--t100);border:none;border-radius:8px;padding:0.35rem 0.8rem;color:var(--t600);cursor:pointer;font-size:0.8rem;font-weight:700;font-family:'DM Sans',sans-serif;">📚 Bibliothèque</button>
+      </div>
+      <input id="thIn" class="inp" value="${esc(S.theme)}" placeholder="Ex : Droit du travail PF, Excel, Hygiène alimentaire...">
+      <div style="margin-top:0.75rem;">
+        <span class="lbl" style="margin-bottom:0.4rem;">COULEUR DE LA SESSION</span>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          ${themes.map(([k,col,lbl])=>`<button onclick="applyTheme('${k}')" style="padding:0.35rem 0.8rem;background:${col};color:white;border:3px solid ${S.colorTheme===k?'white':'transparent'};border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:700;font-family:'DM Sans',sans-serif;">${lbl}</button>`).join('')}
+        </div>
+      </div>
+      <button id="genBtn" class="btn btn-primary btn-full" style="margin-top:0.9rem;" onclick="doGenerate()" ${S.loading?'disabled':''}>
+        <span id="genLabel">${S.loading?(S.loadingStep||'⏳ Chargement...'):"✨ Générer les questions avec l'IA"}</span>
+      </button>
+    </div>
+    ${S.questions.length?`
+      <div class="lbl" style="margin-bottom:0.75rem;">${S.questions.length} QUESTIONS — Cliquez ✏️ pour éditer</div>
+      ${qHtml}
+      <button onclick="addQ()" style="width:100%;padding:0.85rem;background:transparent;border:2px dashed var(--t300);border-radius:14px;color:var(--t500);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;margin-bottom:0.75rem;font-size:0.9rem;">+ Ajouter une question</button>
+      <button onclick="saveToLib(S.theme,S.questions)" style="width:100%;padding:0.75rem;background:var(--t100);border:none;border-radius:12px;color:var(--t600);font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;margin-bottom:1.5rem;font-size:0.88rem;">📚 Sauvegarder dans la bibliothèque</button>
+      <button class="btn btn-primary btn-full syne" style="font-size:1.15rem;font-weight:900;letter-spacing:0.05em;box-shadow:0 10px 30px rgba(45,90,90,0.4);" onclick="goLobby()">Lancer la session →</button>
+    `:''}
+  </div>
+  <div id="libModal" style="display:none;position:fixed;inset:0;background:rgba(6,15,15,0.92);z-index:200;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;">
+    <div style="background:white;border-radius:20px;padding:1.5rem;max-width:560px;width:100%;margin-top:2rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--t800);">📚 Bibliothèque de Quiz</div>
+        <button onclick="closeLib()" style="background:var(--t100);border:none;border-radius:8px;padding:0.4rem 0.75rem;cursor:pointer;color:var(--t600);font-weight:700;">✕</button>
+      </div>
+      <div id="libList">⏳ Chargement...</div>
+    </div>
+  </div>
+  <div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(6,15,15,0.88);z-index:100;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;">
+    <div id="editBox" style="background:white;border-radius:20px;padding:1.5rem;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;"></div>
+  </div>`;
+  const thEl=d.querySelector('#thIn');
+  if(thEl)thEl.addEventListener('input',function(){S.theme=this.value;const btn=d.querySelector('#genBtn');if(btn)btn.disabled=!this.value.trim();});
+  return d;
+};
+
+window.doGenerate=async function(){
+  const thEl=document.querySelector('#thIn');
+  S.theme=(thEl?thEl.value:'').trim();
+  if(!S.theme){toast('⚠️ Saisissez un thème');return;}
+  if(!S.anthropicKey){
+    const k=prompt('Entrez votre clé API Anthropic (sk-ant-...) :');
+    if(!k){toast('⚠️ Clé API requise');return;}
+    saveKey(k);
+  }
+  S.loading=true;S.questions=[];render();
+  await genQuestions();
+  S.loading=false;render();
+};
+
+function setStep(msg){S.loadingStep=msg;const el=document.getElementById('genLabel');if(el)el.textContent=msg;}
+
+async function genQuestions(){
+  try{
+    const r=await fetch('/.netlify/functions/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({theme:S.theme,apiKey:S.anthropicKey})});
+    const raw=await r.text();
+    if(!raw||raw.trim()===''){toast('❌ HTTP '+r.status+' — réponse vide');S.questions=[];return;}
+    let d;
+    try{d=JSON.parse(raw);}catch(e){toast('❌ Réponse invalide : '+raw.substring(0,80));S.questions=[];return;}
+    if(d.error){toast('❌ '+d.error);S.questions=[];return;}
+    if(!d.questions?.length){toast('❌ Aucune question reçue');S.questions=[];return;}
+    S.questions=d.questions;toast('✅ '+S.questions.length+' questions générées !');
+  }catch(e){console.error(e);toast('❌ '+e.message);S.questions=[];}
+}
+
+window.openLib=async function(){
+  const m=document.getElementById('libModal');if(!m)return;m.style.display='flex';
+  const items=await loadLib();
+  const ll=document.getElementById('libList');
+  if(!items.length){ll.innerHTML='<div style="text-align:center;color:var(--t500);padding:2rem;">Aucun quiz sauvegardé</div>';return;}
+  ll.innerHTML=items.map(q=>`
+    <div style="border:2px solid var(--t100);border-radius:14px;padding:1rem;margin-bottom:0.75rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+      <div style="flex:1;"><div style="font-weight:700;color:var(--t800);font-size:0.95rem;">${esc(q.title||'Sans titre')}</div>
+      <div style="color:var(--t500);font-size:0.78rem;margin-top:0.2rem;">${q.count||0} questions · ${q.date||''}</div></div>
+      <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+        <button onclick="loadQuiz('${q.id}')" style="padding:0.4rem 0.9rem;background:var(--t600);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:700;font-family:'DM Sans',sans-serif;">Charger</button>
+        <button onclick="deleteQuiz('${q.id}')" style="padding:0.4rem 0.6rem;background:var(--t100);color:#E21B3C;border:none;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:700;font-family:'DM Sans',sans-serif;">🗑️</button>
+      </div>
+    </div>`).join('');
+};
+window.closeLib=function(){const m=document.getElementById('libModal');if(m)m.style.display='none';};
+window.loadQuiz=async function(id){const snap=await ref('library/'+id).get();const q=snap.val();if(!q)return;S.questions=q.questions||[];S.theme=q.title||'';closeLib();render();toast('✅ Quiz chargé : '+S.questions.length+' questions');};
+window.deleteQuiz=async function(id){if(!confirm('Supprimer ce quiz ?'))return;await deleteFromLib(id);openLib();toast('🗑️ Supprimé');};
+
+window.openEdit=function(i){
+  const q=S.questions[i];
+  const m=document.getElementById('editModal');const b=document.getElementById('editBox');
+  m.style.display='flex';
+  b.innerHTML=`<div class="lbl">QUESTION ${i+1}</div>
+    <textarea id="eQ" rows="3" style="width:100%;border:2px solid var(--t200);border-radius:8px;padding:0.6rem;font-size:0.95rem;resize:vertical;color:var(--t800);margin-bottom:0.75rem;">${esc(q.question)}</textarea>
+    <div class="lbl">RÉPONSES</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+      ${q.answers.map((a,ai)=>`<div style="display:flex;align-items:center;gap:0.4rem;"><div style="width:10px;height:10px;border-radius:2px;background:${AC[ai]};flex-shrink:0;"></div><input id="eA${ai}" value="${esc(a)}" style="flex:1;padding:0.45rem 0.6rem;border:2px solid ${ai===q.correct?AC[ai]:'var(--t100)'};border-radius:7px;font-size:0.83rem;font-family:'DM Sans',sans-serif;outline:none;color:var(--t800);"></div>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+      <span style="font-size:0.78rem;color:var(--t600);font-weight:600;">✓ Bonne réponse :</span>
+      ${[0,1,2,3].map(n=>`<button id="cB${n}" onclick="setC(${i},${n})" style="padding:0.25rem 0.7rem;background:${n===q.correct?AC[n]:'var(--t100)'};color:${n===q.correct?'white':'var(--t700)'};border:none;border-radius:6px;font-weight:800;cursor:pointer;font-size:0.82rem;">${AL[n]}</button>`).join('')}
+      <div style="margin-left:auto;display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;color:var(--t600);">⏱ <span id="tDisp">${q.time}s</span>
+      <input type="range" min="15" max="60" value="${q.time}" oninput="document.getElementById('tDisp').textContent=this.value+'s';S.questions[${i}].time=+this.value;" style="width:70px;"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+      <span style="font-size:0.78rem;color:var(--t600);font-weight:600;">📎</span>
+      <input id="eSrc" value="${esc(q.source||'')}" placeholder="Référence légale PF..." style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--t200);border-radius:7px;font-size:0.82rem;outline:none;color:var(--t800);font-family:'DM Sans',sans-serif;">
+    </div>
+    <div style="display:flex;gap:0.75rem;">
+      <button onclick="saveEdit(${i})" class="btn btn-primary" style="flex:1;">✓ Valider</button>
+      <button onclick="closeEdit()" class="btn btn-secondary">Annuler</button>
+      <button onclick="delQ(${i})" style="background:none;border:none;color:#E21B3C;cursor:pointer;font-size:0.85rem;padding:0.4rem;">🗑️</button>
+    </div>`;
+};
+window.setC=function(qi,n){S.questions[qi].correct=n;[0,1,2,3].forEach(k=>{const b=document.getElementById(`cB${k}`);const inp=document.getElementById(`eA${k}`);if(b){b.style.background=k===n?AC[n]:'var(--t100)';b.style.color=k===n?'white':'var(--t700)';}if(inp)inp.style.borderColor=k===n?AC[n]:'var(--t100)';});};
+window.saveEdit=function(i){S.questions[i].question=document.getElementById('eQ').value;S.questions[i].answers=[0,1,2,3].map(ai=>document.getElementById(`eA${ai}`).value);S.questions[i].source=document.getElementById('eSrc').value;closeEdit();render();};
+window.closeEdit=function(){document.getElementById('editModal').style.display='none';};
+window.delQ=function(i){S.questions.splice(i,1);closeEdit();render();};
+window.addQ=function(){S.questions.push({question:'Nouvelle question ?',answers:['Option A','Option B','Option C','Option D'],correct:0,time:30,source:''});render();setTimeout(()=>openEdit(S.questions.length-1),50);};
+window.goLobby=async function(){
+  if(!S.questions.length){toast('⚠️ Aucune question');return;}
+  try{await ref(`sessions/${S.roomCode}`).set({theme:S.theme,status:'lobby',currentQ:0,questionStart:0,questions:S.questions,hostId:S.playerId,createdAt:Date.now()});go('host-lobby');watchSess('host');}
+  catch(e){toast('❌ Firebase : '+e.message);}
+};
+
+/* HOST LOBBY */
+SCREENS['host-lobby']=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);';
+  const qrUrl=`${location.origin}${location.pathname}?room=${S.roomCode}`;
+  const qrSrc=`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl)}&bgcolor=FFFFFF&color=1D3D3D&margin=10`;
+  d.innerHTML=`
+  <div class="anim" style="width:100%;max-width:520px;">
+    <div style="font-size:0.75rem;color:var(--t400);letter-spacing:0.35em;font-weight:600;margin-bottom:0.6rem;">CODE DE SESSION</div>
+    <div class="syne" style="font-size:clamp(3.5rem,14vw,7rem);font-weight:900;color:white;letter-spacing:0.22em;line-height:0.9;text-shadow:0 0 50px rgba(106,171,171,0.35);margin-bottom:0.5rem;">${S.roomCode}</div>
+    <div style="color:var(--t500);font-size:0.85rem;margin-bottom:2rem;">Scannez le QR ou entrez le code</div>
+    <div style="background:white;border-radius:20px;padding:1.25rem;display:inline-block;margin-bottom:2rem;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+      <img src="${qrSrc}" width="160" height="160" style="display:block;border-radius:8px;" alt="QR">
+      <div style="font-size:0.68rem;color:var(--t600);text-align:center;margin-top:0.5rem;">Scanner pour rejoindre</div>
+    </div>
+    <div style="width:100%;text-align:left;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+        <div style="color:var(--t300);font-weight:600;" id="pCnt">0 participant</div>
+      </div>
+      <div id="pList" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:2rem;min-height:2.5rem;"></div>
+      <button id="stBtn" class="btn btn-primary btn-full syne" style="font-size:1.2rem;font-weight:900;letter-spacing:0.06em;" onclick="startGame()" disabled>🚀  DÉMARRER LE QUIZ</button>
+      <div style="text-align:center;color:var(--t700);font-size:0.78rem;margin-top:0.75rem;">${S.questions.length} questions · ${esc(S.theme)}</div>
+    </div>
+  </div>`;
+  return d;
+};
+
+/* HOST QUESTION */
+SCREENS['host-question']=()=>{
+  const q=S.questions[S.currentQ];
+  const d=document.createElement('div');
+  d.className='screen';
+  d.style.cssText='background:var(--t950);';
+  d.innerHTML=`
+  <div style="background:var(--t800);padding:0.75rem 1.5rem;display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:var(--t400);font-size:0.8rem;font-weight:600;"><span class="syne" style="color:white;font-size:1rem;">Q${S.currentQ+1}</span>/${S.questions.length} · ${esc(S.theme)}</div>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <div style="color:var(--t500);font-size:0.82rem;" id="aCnt">0 réponses</div>
+      <div id="tCirc" class="syne" style="background:var(--t500);color:white;border-radius:50%;width:3rem;height:3rem;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;transition:background 0.3s;">${S.timer}</div>
+    </div>
+  </div>
+  <div style="height:6px;background:var(--t800);"><div id="tBar" style="height:100%;background:var(--t400);width:100%;transition:width 1s linear;box-shadow:0 0 10px rgba(106,171,171,0.5);"></div></div>
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem 2rem;" class="anim">
+    <div style="background:var(--t800);border-radius:24px;padding:2rem 2.5rem;max-width:780px;width:100%;text-align:center;margin-bottom:2rem;box-shadow:0 16px 56px rgba(0,0,0,0.45);">
+      <div class="syne" style="font-size:clamp(1.1rem,3.5vw,2rem);font-weight:700;color:white;line-height:1.45;">${esc(q.question)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.85rem;max-width:780px;width:100%;">
+      ${q.answers.map((a,i)=>`<div style="background:${AC[i]};border-radius:20px;padding:1.1rem 1.4rem;display:flex;align-items:center;gap:0.9rem;box-shadow:0 6px 24px ${AC[i]}44;position:relative;overflow:hidden;"><div style="position:absolute;right:-12px;bottom:-16px;font-size:4.5rem;opacity:0.12;line-height:1;">${AS[i]}</div><div style="font-size:1.8rem;font-weight:900;color:rgba(255,255,255,0.65);flex-shrink:0;">${AS[i]}</div><div style="flex:1;color:white;font-weight:700;font-size:clamp(0.82rem,2vw,1rem);line-height:1.35;">${esc(a)}</div><div id="c${i}" style="background:rgba(0,0,0,0.22);color:white;border-radius:12px;padding:0.2rem 0.65rem;font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;flex-shrink:0;">0</div></div>`).join('')}
+    </div>
+    <button onclick="hostReveal()" style="margin-top:1.5rem;padding:0.65rem 2rem;background:rgba(61,120,120,0.4);color:var(--t200);border:1px solid var(--t600);border-radius:10px;font-family:'DM Sans',sans-serif;cursor:pointer;font-size:0.88rem;font-weight:600;">⏭ Terminer maintenant</button>
+  </div>`;
+  startHostTimer(q.time);
+  return d;
+};
+
+/* HOST RESULTS */
+SCREENS['host-results']=()=>{
+  const q=S.questions[S.currentQ];
+  const parts=S.sessionData?.participants||{};
+  const counts=[0,0,0,0];
+  Object.values(parts).forEach(p=>{const a=p.answers?.[S.currentQ];if(a!==undefined&&a!==null&&a.choice!==undefined)counts[a.choice]++;});
+  const tot=Math.max(counts.reduce((a,b)=>a+b,0),1);
+  const maxC=Math.max(...counts,1);
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t950);';
+  d.innerHTML=`
+  <div class="anim" style="text-align:center;width:100%;">
+    <div style="color:var(--t400);font-size:0.72rem;letter-spacing:0.18em;font-weight:700;margin-bottom:0.75rem;">BONNE RÉPONSE</div>
+    <div class="syne pop" style="background:${AC[q.correct]};border-radius:18px;padding:1.1rem 2.5rem;color:white;font-weight:800;font-size:clamp(1rem,3.5vw,1.5rem);display:inline-flex;align-items:center;gap:1rem;box-shadow:0 10px 40px ${AC[q.correct]}66;margin-bottom:2.5rem;">
+      <span style="opacity:0.75;">${AS[q.correct]}</span><span>${esc(q.answers[q.correct])}</span><span>✓</span>
+    </div>
+    ${q.source?`<div style="color:var(--t600);font-size:0.78rem;margin-top:-2rem;margin-bottom:1.5rem;">📎 ${esc(q.source)}</div>`:''}
+    <div style="display:flex;gap:0.75rem;align-items:flex-end;height:200px;margin:0 auto 2rem;max-width:480px;width:100%;">
+      ${q.answers.map((a,i)=>{const pct=(counts[i]/maxC)*100;const isC=i===q.correct;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;"><div class="syne" style="color:white;font-weight:700;margin-bottom:0.35rem;">${counts[i]}</div><div style="width:100%;background:${isC?AC[i]:AC[i]+'45'};border-radius:10px 10px 0 0;height:${Math.max(pct,4)}%;transition:height 0.9s cubic-bezier(0.34,1.56,0.64,1);position:relative;">${isC?'<div style="text-align:center;margin-top:-2rem;font-size:1.5rem;">⭐</div>':''}</div><div style="color:${isC?'white':'var(--t500)'};font-weight:900;margin-top:0.4rem;font-size:1.4rem;">${AS[i]}</div><div style="color:var(--t700);font-size:0.68rem;">${Math.round(counts[i]/tot*100)}%</div></div>`;}).join('')}
+    </div>
+    <button class="btn btn-primary syne" style="font-size:1.1rem;font-weight:900;letter-spacing:0.05em;" onclick="hostLB()">Classement →</button>
+  </div>`;
+  calcScores(q.correct,S.currentQ);
+  return d;
+};
+
+/* HOST LEADERBOARD */
+SCREENS['host-leaderboard']=()=>{
+  const sorted=Object.values(S.sessionData?.participants||{}).sort((a,b)=>(b.score||0)-(a.score||0));
+  const top5=sorted.slice(0,5);
+  const emojis=['🥇','🥈','🥉','4','5'];
+  const isLast=S.currentQ>=S.questions.length-1;
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);';
+  d.innerHTML=`
+  <div class="anim" style="width:100%;max-width:460px;">
+    <div class="syne" style="font-size:2.5rem;font-weight:900;color:white;margin-bottom:0.4rem;">🏆 Classement</div>
+    <div style="color:var(--t500);margin-bottom:2.5rem;font-size:0.85rem;">Après Q${S.currentQ+1}/${S.questions.length}</div>
+    ${top5.map((p,i)=>`<div style="display:flex;align-items:center;gap:1rem;background:${i===0?'var(--t600)':'var(--t800)'};border-radius:15px;padding:0.9rem 1.25rem;margin-bottom:0.5rem;border:${i===0?'2px solid var(--t400)':'2px solid transparent'};"><div style="font-size:${i<3?1.5:1}rem;width:2rem;text-align:center;">${emojis[i]}</div><div style="flex:1;color:white;font-weight:${i===0?700:500};">${esc(p.name)}</div><div class="syne" style="color:var(--t300);font-weight:800;">${(p.score||0).toLocaleString()}</div></div>`).join('')}
+    ${!sorted.length?'<div style="color:var(--t600);font-style:italic;">Aucun participant</div>':''}
+    <button class="btn syne" onclick="${isLast?'hostFinal()':'nextQ()'}" style="margin-top:2.5rem;width:100%;font-size:1.1rem;font-weight:900;letter-spacing:0.05em;${isLast?'background:linear-gradient(135deg,#C8980A,#F0C030);color:white;border:none;border-radius:14px;padding:1rem;cursor:pointer;':'background:linear-gradient(135deg,var(--t600),var(--t400));color:white;border:none;border-radius:14px;padding:1rem;cursor:pointer;'}">
+      ${isLast?'🏆 Résultats finaux':'Question suivante →'}
+    </button>
+  </div>`;
+  return d;
+};
+
+/* HOST FINAL */
+SCREENS['host-final']=()=>{
+  const sorted=Object.values(S.sessionData?.participants||{}).sort((a,b)=>(b.score||0)-(a.score||0));
+  const order=[sorted[1],sorted[0],sorted[2]];
+  const heights=['170px','230px','130px'];
+  const colors=['#9BA3B0','#FFD700','#CD7F32'];
+  const medals=['🥈','🥇','🥉'];
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t900);position:relative;overflow:hidden;';
+  d.innerHTML=`
+  <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at center top,rgba(45,90,90,0.4),transparent 65%);pointer-events:none;"></div>
+  <div style="position:relative;z-index:1;width:100%;" class="anim">
+    <div class="syne" style="font-size:clamp(1.8rem,7vw,3rem);font-weight:900;color:white;margin-bottom:0.4rem;">🎉 Quiz Terminé !</div>
+    <div style="color:var(--t400);margin-bottom:3rem;font-size:0.9rem;font-style:italic;">${esc(S.theme)}</div>
+    <div style="display:flex;align-items:flex-end;gap:0.5rem;justify-content:center;margin-bottom:2.5rem;">
+      ${order.map((p,i)=>p?`<div style="display:flex;flex-direction:column;align-items:center;width:clamp(90px,22vw,140px);"><div style="font-size:2.5rem;margin-bottom:0.4rem;">${medals[i]}</div><div style="color:white;font-weight:700;font-size:0.82rem;margin-bottom:0.2rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.name)}</div><div class="syne" style="color:${colors[i]};font-weight:800;font-size:0.78rem;margin-bottom:0.4rem;">${(p.score||0).toLocaleString()} pts</div><div style="background:${colors[i]};height:${heights[i]};width:100%;border-radius:12px 12px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:0.6rem;box-shadow:0 0 30px ${colors[i]}55;"><div class="syne" style="font-size:2.8rem;font-weight:900;color:rgba(0,0,0,0.2);">${i===1?1:i===0?2:3}</div></div></div>`:'').join('')}
+    </div>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="go('host-setup',{questions:[],theme:''})">Nouveau Quiz</button>
+      <button onclick="exportPDF()" style="padding:0.9rem 1.5rem;background:linear-gradient(135deg,#C8980A,#F0C030);color:white;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;font-size:0.95rem;">📊 Exporter PDF</button>
+      <button class="btn btn-outline" onclick="go('home')">Accueil</button>
+    </div>
+  </div>`;
+  ref(`sessions/${S.roomCode}/status`).set('final');
+  return d;
+};
+
+/* PLAYER JOIN */
+SCREENS['player-join']=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t800);position:relative;overflow:hidden;';
+  d.innerHTML=`
+  <div style="position:absolute;top:-20%;right:-20%;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(61,120,120,0.3),transparent 65%);pointer-events:none;"></div>
+  <div style="position:relative;z-index:1;width:100%;max-width:360px;" class="anim">
+    <div style="font-size:0.72rem;color:var(--t400);letter-spacing:0.35em;margin-bottom:0.5rem;font-weight:600;">AERH FORMATIONS TAHITI</div>
+    <div class="syne" style="font-size:2.8rem;font-weight:900;color:white;margin-bottom:0.3rem;">QUIZZIZZE</div>
+    <div style="color:var(--t500);margin-bottom:3rem;font-size:0.9rem;">Rejoindre une session</div>
+    <div style="display:flex;flex-direction:column;gap:0.9rem;">
+      <input id="pCIn" class="inp" value="${esc(S.roomCode)}" placeholder="CODE SESSION" style="font-family:'Syne',sans-serif;font-size:1.4rem;text-align:center;letter-spacing:0.25em;font-weight:900;text-transform:uppercase;">
+      <input id="pNIn" class="inp" placeholder="Ton prénom ou pseudo" style="text-align:center;">
+      <button class="btn btn-primary btn-full syne" style="font-size:1.05rem;font-weight:900;letter-spacing:0.05em;" onclick="joinSess()">REJOINDRE →</button>
+    </div>
+    <button onclick="go('home')" style="background:none;border:none;color:var(--t500);cursor:pointer;font-size:0.9rem;font-family:'DM Sans',sans-serif;margin-top:2rem;">← Retour</button>
+  </div>`;
+  return d;
+};
+window.joinSess=async function(){
+  const code=document.getElementById('pCIn').value.trim().toUpperCase();
+  const name=document.getElementById('pNIn').value.trim();
+  if(!code||!name){toast('⚠️ Remplissez les deux champs');return;}
+  try{const snap=await ref(`sessions/${code}/status`).get();if(!snap.exists()){toast('❌ Session introuvable');return;}if(snap.val()==='final'){toast('❌ Session terminée');return;}
+  S.roomCode=code;S.playerName=name;
+  await ref(`sessions/${code}/participants/${S.playerId}`).set({name,score:0,joinedAt:Date.now()});
+  go('player-waiting',{roomCode:code,playerName:name});watchSess('player');}
+  catch(e){toast('❌ Erreur : '+e.message);}
+};
+
+/* PLAYER WAITING */
+SCREENS['player-waiting']=()=>{
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText='background:var(--t800);';
+  d.innerHTML=`
+  <div class="anim">
+    <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,var(--t600),var(--t400));display:flex;align-items:center;justify-content:center;font-size:2.8rem;margin:0 auto 1.5rem;box-shadow:0 0 40px rgba(106,171,171,0.5);animation:pulse 2s ease-in-out infinite;">⏳</div>
+    <div class="syne" style="color:white;font-size:1.8rem;font-weight:900;margin-bottom:0.5rem;">En attente...</div>
+    <div style="color:var(--t400);margin-bottom:2.5rem;font-size:0.9rem;">Le quiz démarre bientôt</div>
+    <div style="background:var(--t700);padding:0.9rem 2rem;border-radius:16px;display:inline-flex;align-items:center;gap:0.75rem;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--t400);animation:blink 1.5s ease infinite;"></div>
+      <div class="syne" style="color:var(--t200);font-weight:700;font-size:1.1rem;">${esc(S.playerName)}</div>
+    </div>
+    <div style="margin-top:2rem;color:var(--t600);font-size:0.8rem;">Session : <span class="syne" style="font-weight:700;letter-spacing:0.15em;">${S.roomCode}</span></div>
+  </div>`;
+  return d;
+};
+
+/* PLAYER QUESTION */
+SCREENS['player-question']=()=>{
+  const sess=S.sessionData||{};
+  const qIdx=sess.currentQ||0;
+  const qs=sess.questions||S.questions;
+  const q=qs[qIdx]||{};
+  const myAns=sess.participants?.[S.playerId]?.answers?.[qIdx];
+  const answered=myAns!==undefined&&myAns!==null;
+  const d=document.createElement('div');
+  d.className='screen';
+  d.style.cssText='background:var(--t900);';
+  d.innerHTML=`
+  <div style="background:var(--t800);padding:0.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center;">
+    <div style="color:var(--t300);font-size:0.82rem;font-weight:600;">${esc(S.playerName)}</div>
+    <div class="syne" style="color:white;font-weight:700;font-size:0.9rem;">Q${qIdx+1}/${qs.length}</div>
+  </div>
+  <div style="height:5px;background:var(--t700);"><div id="pTBar" style="height:100%;background:var(--t400);width:100%;transition:width 0.5s linear;"></div></div>
+  <div style="padding:1.25rem;flex:1;display:flex;flex-direction:column;" class="anim">
+    <div style="background:var(--t800);border-radius:18px;padding:1.5rem;margin-bottom:1.5rem;text-align:center;">
+      <div class="syne" style="color:white;font-size:clamp(1rem,4vw,1.35rem);font-weight:700;line-height:1.45;">${esc(q.question||'')}</div>
+    </div>
+    ${answered?`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;"><div style="font-size:3rem;margin-bottom:1rem;">✋</div><div class="syne" style="color:white;font-size:1.5rem;font-weight:900;">Réponse envoyée !</div><div style="color:var(--t400);margin-top:0.5rem;font-size:0.9rem;">En attente des autres...</div></div>`:`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;flex:1;align-content:start;">
+      ${(q.answers||[]).map((a,i)=>`<button onclick="pAnswer(${i})" style="background:${AC[i]};border:none;border-radius:20px;padding:1.25rem;display:flex;flex-direction:column;align-items:center;gap:0.5rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;font-size:0.9rem;line-height:1.3;text-align:center;color:white;box-shadow:0 4px 16px ${AC[i]}44;min-height:100px;-webkit-tap-highlight-color:transparent;transition:transform 0.1s;" ontouchstart="this.style.transform='scale(0.96)'" ontouchend="this.style.transform='scale(1)'"><div style="font-size:2.5rem;color:rgba(255,255,255,0.7);">${AS[i]}</div><div>${esc(a)}</div></button>`).join('')}
+    </div>`}
+  </div>`;
+  startPTimer(sess);
+  return d;
+};
+
+/* PLAYER REVEAL */
+SCREENS['player-reveal']=()=>{
+  const sess=S.sessionData||{};
+  const qIdx=sess.currentQ||0;
+  const q=(sess.questions||S.questions)[qIdx]||{};
+  const myAns=sess.participants?.[S.playerId]?.answers?.[qIdx];
+  const correct=myAns?.choice===q.correct;
+  const pts=sess.participants?.[S.playerId]?.score||0;
+  const delta=myAns?.points||0;
+  const d=document.createElement('div');
+  d.className='screen center';
+  d.style.cssText=`background:${correct?'var(--t700)':'var(--t800)'};`;
+  d.innerHTML=`
+  <div class="anim">
+    <div class="pop" style="font-size:5rem;margin-bottom:1rem;">${correct?'🎉':'😔'}</div>
+    <div class="syne" style="font-size:2.2rem;font-weight:900;color:white;margin-bottom:0.5rem;">${correct?'Correct !':'Incorrect'}</div>
+    ${correct?`<div class="syne" style="font-size:3rem;font-weight:900;color:white;">+${delta.toLocaleString()}</div><div style="color:var(--t200);font-size:0.9rem;margin-bottom:1.5rem;">points</div>`:`<div style="color:var(--t300);margin-bottom:1.5rem;font-size:0.9rem;">Bonne réponse : <strong style="color:white;">${esc(q.answers?.[q.correct]||'')}</strong></div>`}
+    <div style="background:rgba(0,0,0,0.2);border-radius:14px;padding:0.9rem 1.75rem;margin-bottom:1.5rem;">
+      <div style="color:var(--t200);font-size:0.8rem;margin-bottom:0.25rem;">Score total</div>
+      <div class="syne" style="color:white;font-weight:900;font-size:1.8rem;">${pts.toLocaleString()}</div>
+    </div>
+    <div style="color:var(--t300);font-size:0.88rem;">En attente du classement...</div>
+  </div>`;
+  return d;
+};
+
+/* PLAYER LEADERBOARD */
+SCREENS['player-leaderboard']=()=>{
+  const sess=S.sessionData||{};
+  const sorted=Object.entries(sess.participants||{}).map(([id,p])=>({...p,id})).sort((a,b)=>(b.score||0)-(a.score||0));
+  const myRank=sorted.findIndex(p=>p.id===S.playerId)+1;
+  const myScore=sess.participants?.[S.playerId]?.score||0;
+  const top5=sorted.slice(0,5);
+  const emojis=['🥇','🥈','🥉','4','5'];
+  const isFinal=sess.status==='final';
+  const d=document.createElement('div');
+  d.className='screen';
+  d.style.cssText='background:var(--t900);overflow-y:auto;';
+  d.innerHTML=`
+  <div style="padding:2rem 1.5rem;max-width:420px;margin:0 auto;" class="anim">
+    <div class="syne" style="font-size:1.8rem;font-weight:900;color:white;text-align:center;margin-bottom:0.4rem;">🏆 Classement</div>
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div style="background:var(--t700);border-radius:14px;padding:0.75rem 1.5rem;display:inline-flex;flex-direction:column;align-items:center;">
+        <div style="color:var(--t300);font-size:0.8rem;">Ta position</div>
+        <div class="syne" style="color:white;font-size:1.8rem;font-weight:900;">${myRank>0?`#${myRank}`:'—'}</div>
+        <div style="color:var(--t400);font-size:0.85rem;">${myScore.toLocaleString()} pts</div>
+      </div>
+    </div>
+    ${top5.map((p,i)=>`<div style="display:flex;align-items:center;gap:1rem;background:${p.id===S.playerId?'var(--t600)':i===0?'var(--t700)':'var(--t800)'};border-radius:14px;padding:0.85rem 1.25rem;margin-bottom:0.5rem;border:${p.id===S.playerId?'2px solid var(--t400)':'2px solid transparent'};"><div style="font-size:${i<3?1.3:0.9}rem;width:1.8rem;text-align:center;">${emojis[i]}</div><div style="flex:1;color:white;font-weight:${p.id===S.playerId?700:500};font-size:0.95rem;">${esc(p.name)}</div><div class="syne" style="color:var(--t300);font-weight:800;">${(p.score||0).toLocaleString()}</div></div>`).join('')}
+    <div style="text-align:center;margin-top:2rem;color:var(--t400);font-size:0.88rem;">${isFinal?'Quiz terminé ! Félicitations à tous 🎉':'⏳ Prochaine question en cours...'}</div>
+  </div>`;
+  return d;
+};
+
+/* ═══════════ GAME LOGIC ═══════════ */
+function watchSess(role){
+  if(!S.db)return;
+  listenDB(`sessions/${S.roomCode}`,data=>{
+    if(!data)return;S.sessionData=data;
+    if(role==='host')hostUpdate(data);else playerUpdate(data);
+  });
+}
+function hostUpdate(data){
+  if(S.screen==='host-lobby'){
+    const parts=Object.values(data.participants||{});
+    const cnt=document.getElementById('pCnt');const lst=document.getElementById('pList');const btn=document.getElementById('stBtn');
+    if(cnt)cnt.textContent=`${parts.length} participant${parts.length>1?'s':''}`;
+    if(lst)lst.innerHTML=parts.map(p=>`<div style="background:var(--t700);color:var(--t200);padding:0.4rem 0.9rem;border-radius:20px;font-size:0.85rem;font-weight:600;">${esc(p.name)}</div>`).join('');
+    if(btn)btn.disabled=parts.length===0;
+  }
+  if(S.screen==='host-question'){
+    const qIdx=data.currentQ||0;const parts=data.participants||{};let tot=0;const counts=[0,0,0,0];
+    Object.values(parts).forEach(p=>{const a=p.answers?.[qIdx];if(a!==undefined&&a!==null&&a.choice!==undefined){counts[a.choice]++;tot++;}});
+    const el=document.getElementById('aCnt');if(el)el.textContent=`${tot}/${Object.keys(parts).length} réponses`;
+    counts.forEach((c,i)=>{const e=document.getElementById(`c${i}`);if(e)e.textContent=c;});
+  }
+}
+function playerUpdate(data){
+  const status=data.status;const qIdx=data.currentQ||0;
+  if(status==='question'&&(S.screen!=='player-question'||S.currentQ!==qIdx)){S.currentQ=qIdx;go('player-question');watchSess('player');}
+  else if(status==='reveal'&&S.screen!=='player-reveal'){go('player-reveal');watchSess('player');}
+  else if(status==='leaderboard'&&S.screen!=='player-leaderboard'){go('player-leaderboard');watchSess('player');}
+  else if(status==='final'&&S.screen!=='player-leaderboard'){go('player-leaderboard');watchSess('player');}
+}
+window.startGame=async function(){await ref(`sessions/${S.roomCode}`).update({status:'question',currentQ:0,questionStart:Date.now()});S.currentQ=0;go('host-question');watchSess('host');};
+function startHostTimer(dur){
+  S.timer=dur;let t=dur;if(S.timerInt)clearInterval(S.timerInt);
+  S.timerInt=setInterval(()=>{t--;S.timer=t;const pct=(t/dur)*100;const bar=document.getElementById('tBar');const circ=document.getElementById('tCirc');const urgent=t<=10;
+    if(bar){bar.style.width=pct+'%';bar.style.background=urgent?'#E21B3C':'var(--t400)';}
+    if(circ){circ.textContent=t;circ.style.background=urgent?'#E21B3C':'var(--t500)';circ.style.boxShadow=urgent?'0 0 20px rgba(226,27,60,0.6)':'';}
+    if(t<=0){clearInterval(S.timerInt);hostReveal();}},1000);
+}
+function startPTimer(sess){
+  const qIdx=sess?.currentQ||0;const q=(sess?.questions||S.questions)[qIdx]||{};const dur=q.time||30;const start=sess?.questionStart||Date.now();
+  let remaining=Math.max(0,dur-(Date.now()-start)/1000);if(S.timerInt)clearInterval(S.timerInt);
+  const upd=()=>{const bar=document.getElementById('pTBar');if(!bar)return;bar.style.width=(remaining/dur*100)+'%';bar.style.background=remaining<=10?'#E21B3C':'var(--t400)';};
+  upd();S.timerInt=setInterval(()=>{remaining=Math.max(0,remaining-0.5);upd();if(remaining<=0)clearInterval(S.timerInt);},500);
+}
+window.hostReveal=async function(){if(S.timerInt){clearInterval(S.timerInt);S.timerInt=null;}await ref(`sessions/${S.roomCode}`).update({status:'reveal'});go('host-results');watchSess('host');};
+async function calcScores(correct,qIdx){
+  try{const snap=await ref(`sessions/${S.roomCode}/participants`).get();const parts=snap.val()||{};const qStart=S.sessionData?.questionStart||0;const qTime=S.questions[qIdx]?.time||30;const upds={};
+    Object.entries(parts).forEach(([pid,p])=>{const ans=p.answers?.[qIdx];if(ans&&ans.choice===correct){const elapsed=Math.min((ans.timestamp-qStart)/1000,qTime);const speed=Math.max(0,1-elapsed/qTime);const pts=Math.floor(1000+speed*500);upds[`${pid}/answers/${qIdx}/points`]=pts;upds[`${pid}/score`]=(p.score||0)+pts;}});
+    if(Object.keys(upds).length)await ref(`sessions/${S.roomCode}/participants`).update(upds);}catch(e){console.error(e);}
+}
+window.hostLB=async function(){await ref(`sessions/${S.roomCode}/status`).set('leaderboard');go('host-leaderboard');watchSess('host');};
+window.nextQ=async function(){const nxt=S.currentQ+1;await ref(`sessions/${S.roomCode}`).update({status:'question',currentQ:nxt,questionStart:Date.now()});S.currentQ=nxt;go('host-question');watchSess('host');};
+window.hostFinal=async function(){await ref(`sessions/${S.roomCode}/status`).set('final');go('host-final');};
+window.pAnswer=async function(choice){
+  const qIdx=S.sessionData?.currentQ||0;const already=S.sessionData?.participants?.[S.playerId]?.answers?.[qIdx];
+  if(already!==undefined&&already!==null)return;
+  await ref(`sessions/${S.roomCode}/participants/${S.playerId}/answers/${qIdx}`).set({choice,timestamp:Date.now()});render();
+};
+
+/* Service Worker */
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+
+render();
+</script>
+</body>
+</html>
